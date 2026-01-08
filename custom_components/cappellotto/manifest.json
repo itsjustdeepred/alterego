@@ -1,0 +1,12 @@
+{
+  "domain": "cappellotto",
+  "name": "Alterego",
+  "codeowners": ["@deepred"],
+  "config_flow": true,
+  "documentation": "https://github.com/itsjustdeepred/alterego",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}
+

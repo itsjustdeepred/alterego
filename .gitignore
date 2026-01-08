@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Home Assistant
+.homeassistant/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.proxymanlogv2
+*.tmp
+
+# Test files
+test_*.py
+*_test.py
+
+# Documentation/analysis (optional - keep if needed)
+# ANALISI_MODIFICHE_API.md
+
+# Temporary directories
+brands_repo/
+custom_integrations/
+modifications_extracted/
+pinned_domains_extracted/
+
+# Scripts
+create_icons.py
+

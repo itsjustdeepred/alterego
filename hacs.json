@@ -1,0 +1,8 @@
+{
+  "name": "Alterego",
+  "render_readme": true,
+  "domains": ["cappellotto"],
+  "iot_class": "Cloud Polling",
+  "homeassistant": "2024.1.0"
+}
+

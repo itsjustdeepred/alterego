@@ -1,0 +1,125 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Autenticazione Alterego",
+        "description": "Inserisci le tue credenziali Alterego per accedere al sistema di controllo temperatura/VMC.",
+        "data": {
+          "username": "Indirizzo email",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "Il tuo indirizzo email dell'account Alterego",
+          "password": "La tua password dell'account Alterego"
+        }
+      },
+      "station": {
+        "title": "Selezione Stazione",
+        "description": "Inserisci l'ID della stazione (numero seriale).\n\nEsempio: DOT_XXXXXXXX\n\nPuoi inserire più ID separati da virgola per testare quali sono accessibili.\n\nPuoi trovare l'ID della stazione nell'app Alterego o nel pannello di controllo.",
+        "data": {
+          "station_id": "ID Stazione(e)"
+        },
+        "data_description": {
+          "station_id": "Il numero seriale della tua stazione Alterego, separati da virgola se multiple (es. DOT_XXXXXXXX o DOT_XXXXXXXX, DOT_YYYYYYYY)"
+        }
+      },
+      "station_select": {
+        "title": "Selezione Stazione",
+        "description": "Sono state trovate {count} stazione/i disponibile/i. Seleziona quella che vuoi configurare.",
+        "data": {
+          "station_id": "Stazione"
+        }
+      },
+      "station_name": {
+        "title": "Nome Stazione (Opzionale)",
+        "description": "Puoi assegnare un nome personalizzato a questa stazione per identificarla più facilmente in Home Assistant.\n\nStation ID: {station_id}\n\nLascia vuoto per usare lo Station ID come nome.",
+        "data": {
+          "station_name": "Nome personalizzato"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi all'API Alterego. Verifica la connessione internet.",
+      "invalid_auth": "Credenziali non valide. Controlla email e password.",
+      "invalid_station": "ID stazione non valido o non accessibile. Verifica che l'ID sia corretto e che tu abbia accesso a questa stazione.",
+      "unknown": "Si è verificato un errore imprevisto"
+    },
+    "abort": {
+      "already_configured": "Questa stazione è già configurata",
+      "reauth_successful": "Riautenticazione completata con successo",
+      "no_station_id": "Station ID mancante"
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "Opzioni Alterego",
+          "description": "Modifica il nome della stazione (solo locale).\n\nStation ID: {station_id}",
+          "data": {
+            "station_name": "Nome stazione"
+          }
+        }
+      }
+    },
+    "reconfigure": {
+      "step": {
+        "reconfigure": {
+          "title": "Riconfigurazione Alterego",
+          "description": "Modifica le credenziali e il nome della stazione.\n\nStation ID: {station_id}",
+          "data": {
+            "username": "Indirizzo email",
+            "password": "Password",
+            "station_name": "Nome stazione"
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Temperatura"
+      },
+      "humidity": {
+        "name": "Umidità"
+      },
+      "dewpoint": {
+        "name": "Punto di rugiada"
+      }
+    },
+    "select": {
+      "forcing_mode": {
+        "name": "Modalità"
+      },
+      "deum_override": {
+        "name": "Override"
+      },
+      "season": {
+        "name": "Stagione"
+      },
+      "setpoint_comfort_summer": {
+        "name": "Setpoint Estate Comfort"
+      },
+      "setpoint_economy_summer": {
+        "name": "Setpoint Estate Economy"
+      },
+      "setpoint_comfort_winter": {
+        "name": "Setpoint Inverno Comfort"
+      },
+      "setpoint_economy_winter": {
+        "name": "Setpoint Inverno Economy"
+      },
+      "setpoint_humidity": {
+        "name": "Setpoint Umidità"
+      }
+    },
+    "switch": {
+      "zone_power": {
+        "name": "Alimentazione"
+      },
+      "deum_power": {
+        "name": "Alimentazione"
+      }
+    }
+  }
+}
+

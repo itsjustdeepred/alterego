@@ -1,0 +1,125 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Alterego Authentication",
+        "description": "Enter your Alterego credentials to access the temperature/VMC control system.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "Your Alterego account email address",
+          "password": "Your Alterego account password"
+        }
+      },
+      "station": {
+        "title": "Select Station",
+        "description": "Enter your station ID (serial number).\n\nExample: DOT_XXXXXXXX\n\nYou can enter multiple station IDs separated by commas to test which ones are accessible.\n\nYou can find the station ID in the Alterego app or control panel.",
+        "data": {
+          "station_id": "Station ID(s)"
+        },
+        "data_description": {
+          "station_id": "The serial number(s) of your Alterego station(s), separated by commas if multiple (e.g., DOT_XXXXXXXX or DOT_XXXXXXXX, DOT_YYYYYYYY)"
+        }
+      },
+      "station_select": {
+        "title": "Select Station",
+        "description": "Found {count} available station(s). Please select the one you want to configure.",
+        "data": {
+          "station_id": "Station"
+        }
+      },
+      "station_name": {
+        "title": "Station Name (Optional)",
+        "description": "You can assign a custom name to this station to identify it more easily in Home Assistant.\n\nStation ID: {station_id}\n\nLeave empty to use the Station ID as name.",
+        "data": {
+          "station_name": "Custom name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Alterego API. Please check your internet connection.",
+      "invalid_auth": "Invalid credentials. Please check your email and password.",
+      "invalid_station": "Invalid station ID or station not accessible. Please verify that the ID is correct and you have access to this station.",
+      "unknown": "An unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This station is already configured",
+      "reauth_successful": "Re-authentication completed successfully",
+      "no_station_id": "Missing Station ID"
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "Alterego Options",
+          "description": "Modify the station name (local only).\n\nStation ID: {station_id}",
+          "data": {
+            "station_name": "Station name"
+          }
+        }
+      }
+    },
+    "reconfigure": {
+      "step": {
+        "reconfigure": {
+          "title": "Reconfigure Alterego",
+          "description": "Modify credentials and station name.\n\nStation ID: {station_id}",
+          "data": {
+            "username": "Email address",
+            "password": "Password",
+            "station_name": "Station name"
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "dewpoint": {
+        "name": "Dewpoint"
+      }
+    },
+    "select": {
+      "forcing_mode": {
+        "name": "Mode"
+      },
+      "deum_override": {
+        "name": "Override"
+      },
+      "season": {
+        "name": "Season"
+      },
+      "setpoint_comfort_summer": {
+        "name": "Summer Comfort Setpoint"
+      },
+      "setpoint_economy_summer": {
+        "name": "Summer Economy Setpoint"
+      },
+      "setpoint_comfort_winter": {
+        "name": "Winter Comfort Setpoint"
+      },
+      "setpoint_economy_winter": {
+        "name": "Winter Economy Setpoint"
+      },
+      "setpoint_humidity": {
+        "name": "Humidity Setpoint"
+      }
+    },
+    "switch": {
+      "zone_power": {
+        "name": "Power"
+      },
+      "deum_power": {
+        "name": "Power"
+      }
+    }
+  }
+}
+
