@@ -194,14 +194,17 @@ class AlteregoAPI:
             _LOGGER.error("API request failed: %s", err)
             raise AlteregoAPIError(f"Request failed: {err}") from err
 
+    @staticmethod
+    def _numeric_id(resource_id: str) -> str:
+        return resource_id.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+
     async def update_zone(
         self,
         station_id: str,
         zone_id: str,
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        
-        endpoint = f"{station_id}/zones/{zone_id}"
+        endpoint = f"{station_id}/zones/{self._numeric_id(zone_id)}"
         return await self._request("POST", endpoint, data=data)
 
     async def update_timer(
@@ -210,8 +213,7 @@ class AlteregoAPI:
         timer_id: str,
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        
-        endpoint = f"{station_id}/timers/{timer_id}"
+        endpoint = f"{station_id}/timers/{self._numeric_id(timer_id)}"
         return await self._request("POST", endpoint, data=data)
 
     async def update_deum(
@@ -220,8 +222,7 @@ class AlteregoAPI:
         deum_id: str,
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        
-        endpoint = f"{station_id}/deums/{deum_id}"
+        endpoint = f"{station_id}/deums/{self._numeric_id(deum_id)}"
         return await self._request("POST", endpoint, data=data)
 
     async def update_global(
