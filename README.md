@@ -1,6 +1,6 @@
 <div align="center">
 
-![Cappellotto Logo](logo_cappellotto.png)
+![Cappellotto Logo](https://raw.githubusercontent.com/itsjustdeepred/alterego/main/logo.png)
 
 # Alterego Integration for Home Assistant
 

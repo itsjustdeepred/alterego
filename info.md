@@ -8,7 +8,7 @@ Enhanced Alterego integration for Home Assistant with GUI-based configuration fl
 [![Maintainer][maintainer-shield]][maintainer]
 
 <p align="center">
-  <img width="360" src="logo_cappellotto.png">
+  <img width="360" src="https://raw.githubusercontent.com/itsjustdeepred/alterego/main/logo.png">
 </p>
 
 > **⚠️ Disclaimer**: This integration is **not official** and is **not affiliated with or endorsed by** Alterego or its manufacturers. This is an independent, community-developed integration.
