@@ -1,6 +1,6 @@
 <div align="center">
 
-![Cappellotto Logo](https://raw.githubusercontent.com/itsjustdeepred/alterego/main/logo.png)
+![Alterego Logo](https://raw.githubusercontent.com/itsjustdeepred/alterego/main/logo.png)
 
 # Alterego Integration for Home Assistant
 
@@ -16,152 +16,119 @@
 
 > **⚠️ Disclaimer**: This integration is **not official** and is **not affiliated with or endorsed by** Alterego or its manufacturers. This is an independent, community-developed integration.
 
-Enhanced Alterego integration for Home Assistant with GUI-based configuration flow, station selection, and comprehensive control capabilities.
+Home Assistant integration for Alterego climate control systems (radiant floor, fan coil, VMC/dehumidifiers). Supports monitoring and full control of zones, timers, and dehumidifiers via the Alterego cloud API.
 
 ## Features
 
-* **GUI Configuration**: Set up the integration through the Home Assistant UI without editing YAML files
-* **Station Selection**: Choose from available stations after authentication
-* **Zone Monitoring**: Track temperature, humidity, and dewpoint for each zone
-* **Climate Control**: Manage zone setpoints (comfort/economy, summer/winter) with forcing modes
-* **Dehumidifier Management**: Control dehumidifiers with override modes (AUTO, LOW, MEDIUM, HIGH, OFF)
-* **Timer Programming**: Configure weekly schedules with multiple time slots per day
-* **Real-time Updates**: Uses a data coordinator for efficient polling and updates
-* **Reconfiguration**: Update credentials and station name without removing and re-adding the integration
+- **GUI Configuration**: Set up via the Home Assistant UI — no YAML editing required
+- **Station Selection**: Choose from all available stations after login
+- **Zone Monitoring**: Temperature, humidity, and dewpoint sensors per zone
+- **Seasonal Climate Control**: Zones switch automatically between `cool` (summer) and `heat` (winter) mode based on the configured season
+- **Forcing Modes**: Override each zone to AUTO / COMFORT / ECONOMY / OFF
+- **Setpoints**: Set comfort and economy setpoints independently for summer and winter
+- **Dehumidifier / VMC Control**: Override speed (AUTO, LOW, MEDIUM, HIGH, OFF) for each visible dehumidifier or VMC unit
+- **Timer Programming**: Weekly schedule control — mode and time for each active daily slot
+- **Season Select**: Switch the whole system between SUMMER and WINTER from Home Assistant
+- **Efficient Polling**: Zones every 30 s, global status every 5 min, timers and dehumidifiers every 5 min
 
 ## Installation
 
 ### HACS (Recommended)
 
 1. Open HACS in Home Assistant
-2. Go to Integrations
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/itsjustdeepred/alterego`
-6. Select category: "Integration"
-7. Click "Add"
-8. Find "Alterego" in the HACS integrations list
-9. Click "Download"
-10. Restart Home Assistant
-11. Go to Settings → Devices & Services → Add Integration
-12. Search for "Alterego" and follow the setup wizard
+2. Go to **Integrations**
+3. Click the three dots (top right) → **Custom repositories**
+4. Add `https://github.com/itsjustdeepred/alterego` — category: **Integration**
+5. Find **Alterego** in the list and click **Download**
+6. Restart Home Assistant
+7. Go to **Settings → Devices & Services → Add Integration**, search for **Alterego**
 
 ### Manual Installation
 
-1. Download or clone this repository
-2. Copy the `custom_components/cappellotto` folder to your Home Assistant `custom_components` directory
-3. Restart Home Assistant
-4. Go to Settings → Devices & Services → Add Integration
-5. Search for "Alterego" and follow the setup wizard
+1. Copy the `custom_components/cappellotto` folder into your HA `custom_components` directory
+2. Restart Home Assistant
+3. Go to **Settings → Devices & Services → Add Integration**, search for **Alterego**
 
 ## Configuration
 
-### Setup Steps
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| Email | Yes | Alterego account email |
+| Password | Yes | Alterego account password |
+| Station | Yes | Select from the list of available stations |
+| Station Name | No | Optional custom display name (defaults to station ID) |
 
-1. **Add Integration in Home Assistant**:
-   * Go to Settings → Devices & Services → Add Integration
-   * Search for "Alterego"
-   * Enter your Alterego account email (username)
-   * Enter your password
-   * Select your station from the list
-   * Optionally set a custom local name for the station
-   * Complete the setup
+To update credentials or station name after setup: go to the integration page and click **Configure**.
 
-2. **Entities Created**:
-   * **Sensors**: Temperature, humidity, and dewpoint for each zone
-   * **Climate**: Zone temperature control with setpoints
-   * **Select**: Zone forcing modes, dehumidifier overrides, season selection
-   * **Number**: Zone setpoints (comfort/economy, summer/winter)
-   * **Time**: Timer slot time configuration
-
-### Reconfiguration
-
-To update your credentials or station name:
-
-1. Go to Settings → Devices & Services
-2. Find your Alterego integration
-3. Click on it, then click "Configure"
-4. Update your username, password, or station name
-5. Changes take effect after reload
-
-## Supported Entities
+## Entities
 
 ### Sensors
-* **Temperature**: Current temperature for each zone
-* **Humidity**: Current humidity for zones with T+RH sensors
-* **Dewpoint**: Dewpoint temperature for zones with T+RH sensors
-* **Outside Temperature**: External temperature sensor
-* **Global Status**: System status and connection information
+| Entity | Unit | Notes |
+|--------|------|-------|
+| Zone Temperature | °C | All enabled zones |
+| Zone Humidity | % | Zones with T+RH sensor |
+| Zone Dewpoint | °C | Zones with T+RH sensor |
+| Outside Temperature | °C | From the station |
+| Global Status | — | System on/off state, season, last connection |
 
 ### Climate
-* Zone temperature control
-* Summer/winter setpoints (comfort and economy)
-* Forcing modes: AUTO, OFF, ECONOMY, COMFORT
+One entity per enabled zone.
+
+| Feature | Details |
+|---------|---------|
+| HVAC mode | `cool` in summer · `heat` in winter · `off` |
+| Preset modes | AUTO · COMFORT · ECONOMY · OFF |
+| Target temperature | Reads and writes the active seasonal setpoint |
+| Min / Max temp | Read from global station parameters per season |
 
 ### Select
-* **Zone Forcing Mode**: AUTO, OFF, ECONOMY, COMFORT
-* **Dehumidifier Override**: AUTO, LOW, MEDIUM, HIGH, OFF
-* **Season**: SUMMER, WINTER
-* **Timer Slots**: Mode selection for each timer slot
+| Entity | Options |
+|--------|---------|
+| Zone Forcing | AUTO · COMFORT · ECONOMY · OFF |
+| Dehumidifier / VMC Override | AUTO · LOW · MEDIUM · HIGH · OFF |
+| Season | SUMMER · WINTER |
+| Timer slot mode (per active slot) | COMFORT · ECONOMY · OFF |
 
 ### Number
-* Zone setpoints (summer/winter, comfort/economy)
-* Humidity setpoint
-* Dehumidifier boost timer
+| Entity | Notes |
+|--------|-------|
+| Zone Comfort Setpoint Summer | °C |
+| Zone Economy Setpoint Summer | °C |
+| Zone Comfort Setpoint Winter | °C |
+| Zone Economy Setpoint Winter | °C |
+| Zone Humidity Setpoint | % — available in summer only |
+| Dehumidifier Boost Timer | min — available in summer only |
 
 ### Time
-* Timer slot time configuration (all 6 slots for all 7 days)
+Timer slot start time for each active slot (Fascia 1, Fascia 2…) per day of the week. Inactive slots (N/U) are hidden.
 
 ## Troubleshooting
 
-### Authentication Issues
+**Entities not appearing** — wait a few minutes after first setup; check HA logs for API errors.
 
-* Verify your email and password are correct
-* Check that your Alterego account is active
-* Ensure your station is accessible
+**Authentication errors** — verify email and password; ensure your Alterego account has an active station.
 
-### Entities Not Appearing
-
-* Wait a few minutes after setup for initial data fetch
-* Check Home Assistant logs for any errors
-* Verify your station has enabled zones
-
-### API Rate Limiting
-
-* The integration automatically respects API rate limits
-* Updates are staggered to avoid exceeding limits
-* If you see rate limit errors, wait a few minutes
+**HACS: "unable to select next github token from pool"** — configure a GitHub Personal Access Token in HACS settings (HACS → three dots → Settings → GitHub token).
 
 ## Requirements
 
-* Home Assistant 2024.1.0 or later
-* Alterego account with active station
-* Python package: `aiohttp>=3.8.0` (installed automatically)
+- Home Assistant 2024.1.0 or later
+- Alterego account with at least one active station
+- Python package `aiohttp >= 3.8.0` (installed automatically)
 
 ## Disclaimer
 
-This integration is an **unofficial, community-developed** project. It is:
-* **Not** created, maintained, or supported by Alterego
-* **Not** affiliated with or endorsed by Alterego or its manufacturers
-* Provided "as-is" without any warranty
-
-Use at your own risk. The developers are not responsible for any issues or damages that may arise from using this integration.
-
-## Support
-
-For issues, feature requests, or contributions, please visit the [GitHub repository][repository].
+This is an **unofficial, community-developed** project — not created, maintained, or endorsed by Alterego or its manufacturers. Provided as-is, use at your own risk.
 
 ## License
 
-This project is licensed under the Apache License 2.0\. See the [LICENSE](LICENSE) file for details.
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
 
-**If you find this integration useful, please consider giving it a ⭐ on GitHub!**
-
-Made with ❤️ for the Home Assistant community
+**Found this useful? Leave a ⭐ on GitHub!**
 
 </div>
 
