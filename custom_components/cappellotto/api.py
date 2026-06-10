@@ -38,8 +38,13 @@ class AlteregoAPI:
         return self._session
 
     async def _ensure_authenticated(self) -> None:
-        
-        if self._access_token is None:
+
+        current_time = asyncio.get_event_loop().time()
+        token_expired = (
+            self._token_expires_at is not None
+            and current_time >= self._token_expires_at - 60
+        )
+        if self._access_token is None or token_expired:
             await self.authenticate()
 
     async def authenticate(self) -> Dict[str, Any]:

@@ -29,15 +29,16 @@ async def async_setup_entry(
     for timer in coordinator.data.get("timers", []):
         status = timer.get("status", {})
         if status.get("enabled") == 1:
+            params = timer.get("params", {})
 
             days = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
             max_slots = 6
-            
 
             for day in days:
                 for slot_num in range(max_slots):
                     slot_key = f"S_{day}_{slot_num}"
-                    entities.append(AlteregoTimerSlotTime(coordinator, timer, slot_key))
+                    if params.get(slot_key, "N/U") != "N/U":
+                        entities.append(AlteregoTimerSlotTime(coordinator, timer, slot_key))
 
     async_add_entities(entities)
 
@@ -67,18 +68,14 @@ class AlteregoTimerSlotTime(CoordinatorEntity, TimeEntity):
             "MO": "Lunedì", "TU": "Martedì", "WE": "Mercoledì", "TH": "Giovedì",
             "FR": "Venerdì", "SA": "Sabato", "SU": "Domenica"
         }
-        day_map_en = {
-            "MO": "Monday", "TU": "Tuesday", "WE": "Wednesday", "TH": "Thursday",
-            "FR": "Friday", "SA": "Saturday", "SU": "Sunday"
-        }
         parts = slot_key.split("_")
         if len(parts) >= 3:
             day_code = parts[1]
-            day = day_map.get(day_code, day_map_en.get(day_code, day_code))
-
-            self._attr_name = f"{self._timer_name} {day}"
+            day = day_map.get(day_code, day_code)
+            slot_num = int(parts[2])
+            self._attr_name = f"{self._timer_name} {day} Fascia {slot_num + 1} Orario"
         else:
-            self._attr_name = f"{self._timer_name} {slot_key}"
+            self._attr_name = f"{self._timer_name} {slot_key} Orario"
         
         self._attr_unique_id = f"{self._station_id}_{self._timer_id}_{slot_key}_time"
 

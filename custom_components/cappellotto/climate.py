@@ -52,7 +52,6 @@ class AlteregoClimate(CoordinatorEntity, ClimateEntity):
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
     )
-    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
     _attr_preset_modes = [FORCING_AUTO, FORCING_COMFORT, FORCING_ECONOMY, FORCING_OFF]
 
     def __init__(
@@ -108,16 +107,26 @@ class AlteregoClimate(CoordinatorEntity, ClimateEntity):
             return None
 
     @property
-    def hvac_mode(self) -> HVACMode:
-        
-        zone = self._get_zone_data()
-        status = zone.get("status", {})
-        forcing = zone.get("params", {}).get("forcing", FORCING_AUTO)
-        output = status.get("zone_output", "OFF")
+    def hvac_modes(self) -> list[HVACMode]:
+        if self._get_season() == "SUMMER":
+            return [HVACMode.COOL, HVACMode.OFF]
+        return [HVACMode.HEAT, HVACMode.OFF]
 
-        if forcing == FORCING_OFF or output == "OFF":
+    @property
+    def hvac_mode(self) -> HVACMode:
+
+        zone = self._get_zone_data()
+        forcing = zone.get("params", {}).get("forcing", FORCING_AUTO)
+
+        if forcing == FORCING_OFF:
             return HVACMode.OFF
+        if self._get_season() == "SUMMER":
+            return HVACMode.COOL
         return HVACMode.HEAT
+
+    def _get_season(self) -> str:
+        global_data = self.coordinator.data.get("global", {})
+        return global_data.get("status", {}).get("global_season", "WINTER")
 
     @property
     def preset_mode(self) -> str:
@@ -215,10 +224,10 @@ class AlteregoClimate(CoordinatorEntity, ClimateEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        
+
         if hvac_mode == HVACMode.OFF:
             await self.async_set_preset_mode(FORCING_OFF)
-        else:
+        elif hvac_mode in (HVACMode.HEAT, HVACMode.COOL):
             await self.async_set_preset_mode(FORCING_AUTO)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:

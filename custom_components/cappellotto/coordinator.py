@@ -80,9 +80,11 @@ class AlteregoDataUpdateCoordinator(DataUpdateCoordinator):
                     self._last_global_update = current_time
                 except AlteregoAPIError as err:
                     _LOGGER.warning("Failed to update global status: %s", err)
-
                     if self.data and "global" in self.data:
                         data["global"] = self.data["global"]
+            else:
+                if self.data and "global" in self.data:
+                    data["global"] = self.data["global"]
 
 
             if not hasattr(self, "_last_deums_update") or \
@@ -94,9 +96,11 @@ class AlteregoDataUpdateCoordinator(DataUpdateCoordinator):
                     self._last_deums_update = current_time
                 except AlteregoAPIError as err:
                     _LOGGER.warning("Failed to update deums: %s", err)
-
                     if self.data and "deums" in self.data:
                         data["deums"] = self.data["deums"]
+            else:
+                if self.data and "deums" in self.data:
+                    data["deums"] = self.data["deums"]
 
 
             if not hasattr(self, "_last_timers_update") or \
@@ -108,9 +112,11 @@ class AlteregoDataUpdateCoordinator(DataUpdateCoordinator):
                     self._last_timers_update = current_time
                 except AlteregoAPIError as err:
                     _LOGGER.warning("Failed to update timers: %s", err)
-
                     if self.data and "timers" in self.data:
                         data["timers"] = self.data["timers"]
+            else:
+                if self.data and "timers" in self.data:
+                    data["timers"] = self.data["timers"]
 
             return data
 
