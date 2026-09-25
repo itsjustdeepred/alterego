@@ -2,80 +2,99 @@
   "config": {
     "step": {
       "user": {
-        "title": "Alterego Authentication",
+        "title": "Alterego authentication",
         "description": "Enter your Alterego credentials to access the temperature/VMC control system.",
         "data": {
           "username": "Email address",
           "password": "Password"
         },
         "data_description": {
-          "username": "Your Alterego account email address",
-          "password": "Your Alterego account password"
+          "username": "The email address of your Alterego account",
+          "password": "The password of your Alterego account"
         }
       },
       "station": {
-        "title": "Select Station",
-        "description": "Enter your station ID (serial number).\n\nExample: DOT_XXXXXXXX\n\nYou can enter multiple station IDs separated by commas to test which ones are accessible.\n\nYou can find the station ID in the Alterego app or control panel.",
+        "title": "Select station",
+        "description": "The station list could not be retrieved automatically. Enter your station ID (serial number), e.g. DOT_XXXXXXXX.\n\nYou can find it in the Alterego app or on the control panel.",
         "data": {
-          "station_id": "Station ID(s)"
+          "station_id": "Station ID"
         },
         "data_description": {
-          "station_id": "The serial number(s) of your Alterego station(s), separated by commas if multiple (e.g., DOT_XXXXXXXX or DOT_XXXXXXXX, DOT_YYYYYYYY)"
+          "station_id": "The serial number of your Alterego station (e.g. DOT_XXXXXXXX)"
         }
       },
       "station_select": {
-        "title": "Select Station",
-        "description": "Found {count} available station(s). Please select the one you want to configure.",
+        "title": "Select station",
+        "description": "Found {count} available station(s). Select the one you want to configure.",
         "data": {
           "station_id": "Station"
         }
       },
       "station_name": {
-        "title": "Station Name (Optional)",
-        "description": "You can assign a custom name to this station to identify it more easily in Home Assistant.\n\nStation ID: {station_id}\n\nLeave empty to use the Station ID as name.",
+        "title": "Station name (optional)",
+        "description": "Station ID: {station_id}",
         "data": {
           "station_name": "Custom name"
+        },
+        "data_description": {
+          "station_name": "Leave empty to use the station ID as name."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Alterego",
+        "description": "The Alterego credentials for station {station_id} are no longer valid. Enter them again.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Alterego",
+        "description": "Change the credentials and the name of the station.\n\nStation ID: {station_id}",
+        "data": {
+          "username": "Email address",
+          "password": "Password",
+          "station_name": "Station name"
+        },
+        "data_description": {
+          "station_name": "Leave empty to use the station ID as name."
         }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to Alterego API. Please check your internet connection.",
-      "invalid_auth": "Invalid credentials. Please check your email and password.",
-      "invalid_station": "Invalid station ID or station not accessible. Please verify that the ID is correct and you have access to this station.",
-      "unknown": "An unexpected error occurred"
+      "cannot_connect": "Unable to connect to the Alterego API. Check your internet connection.",
+      "invalid_auth": "Invalid credentials. Check your email and password.",
+      "invalid_station": "Invalid station ID or station not accessible with this account.",
+      "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This station is already configured",
-      "reauth_successful": "Re-authentication completed successfully",
-      "no_station_id": "Missing Station ID"
-    },
-    "options": {
-      "step": {
-        "init": {
-          "title": "Alterego Options",
-          "description": "Modify the station name (local only).\n\nStation ID: {station_id}",
-          "data": {
-            "station_name": "Station name"
-          }
-        }
-      }
-    },
-    "reconfigure": {
-      "step": {
-        "reconfigure": {
-          "title": "Reconfigure Alterego",
-          "description": "Modify credentials and station name.\n\nStation ID: {station_id}",
-          "data": {
-            "username": "Email address",
-            "password": "Password",
-            "station_name": "Station name"
-          }
+      "already_configured": "This station is already configured.",
+      "reauth_successful": "Re-authentication completed successfully.",
+      "reconfigure_successful": "Reconfiguration completed successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alterego options",
+        "description": "Change the station name shown in Home Assistant.\n\nStation ID: {station_id}",
+        "data": {
+          "station_name": "Station name"
+        },
+        "data_description": {
+          "station_name": "Leave empty to use the station ID as name."
         }
       }
     }
   },
   "entity": {
     "sensor": {
+      "status": {
+        "name": "Status"
+      },
+      "outside_temperature": {
+        "name": "Outside temperature"
+      },
       "temperature": {
         "name": "Temperature"
       },
@@ -96,30 +115,78 @@
       "season": {
         "name": "Season"
       },
-      "setpoint_comfort_summer": {
-        "name": "Summer Comfort Setpoint"
+      "slot_mo": {
+        "name": "Monday slot {slot}"
       },
-      "setpoint_economy_summer": {
-        "name": "Summer Economy Setpoint"
+      "slot_tu": {
+        "name": "Tuesday slot {slot}"
       },
-      "setpoint_comfort_winter": {
-        "name": "Winter Comfort Setpoint"
+      "slot_we": {
+        "name": "Wednesday slot {slot}"
       },
-      "setpoint_economy_winter": {
-        "name": "Winter Economy Setpoint"
+      "slot_th": {
+        "name": "Thursday slot {slot}"
       },
-      "setpoint_humidity": {
-        "name": "Humidity Setpoint"
+      "slot_fr": {
+        "name": "Friday slot {slot}"
+      },
+      "slot_sa": {
+        "name": "Saturday slot {slot}"
+      },
+      "slot_su": {
+        "name": "Sunday slot {slot}"
       }
     },
-    "switch": {
-      "zone_power": {
-        "name": "Power"
+    "number": {
+      "setpoint_comfort_summer": {
+        "name": "Summer comfort setpoint"
       },
-      "deum_power": {
-        "name": "Power"
+      "setpoint_economy_summer": {
+        "name": "Summer economy setpoint"
+      },
+      "setpoint_comfort_winter": {
+        "name": "Winter comfort setpoint"
+      },
+      "setpoint_economy_winter": {
+        "name": "Winter economy setpoint"
+      },
+      "setpoint_humidity": {
+        "name": "Humidity setpoint"
+      },
+      "boost_timer": {
+        "name": "Boost timer"
       }
+    },
+    "time": {
+      "slot_time_mo": {
+        "name": "Monday slot {slot} time"
+      },
+      "slot_time_tu": {
+        "name": "Tuesday slot {slot} time"
+      },
+      "slot_time_we": {
+        "name": "Wednesday slot {slot} time"
+      },
+      "slot_time_th": {
+        "name": "Thursday slot {slot} time"
+      },
+      "slot_time_fr": {
+        "name": "Friday slot {slot} time"
+      },
+      "slot_time_sa": {
+        "name": "Saturday slot {slot} time"
+      },
+      "slot_time_su": {
+        "name": "Sunday slot {slot} time"
+      }
+    }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "Could not send the change to the Alterego API: {error}"
+    },
+    "summer_only": {
+      "message": "This setting can only be changed while the station is in summer mode."
     }
   }
 }
-

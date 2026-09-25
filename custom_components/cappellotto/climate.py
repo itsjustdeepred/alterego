@@ -1,3 +1,4 @@
+"""Climate entities (one per zone) for the Alterego integration."""
 
 from __future__ import annotations
 
@@ -8,251 +9,125 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DEVICE_TYPE_ZONE,
-    DOMAIN,
     FORCING_AUTO,
     FORCING_COMFORT,
     FORCING_ECONOMY,
     FORCING_OFF,
+    SEASON_SUMMER,
 )
-from .coordinator import AlteregoDataUpdateCoordinator
+from .coordinator import AlteregoConfigEntry, AlteregoDataUpdateCoordinator
+from .entity import AlteregoZoneEntity, to_float
+
+PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: AlteregoConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    
-    coordinator: AlteregoDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = []
-
-
-    for zone in coordinator.data.get("zones", []):
-        status = zone.get("status", {})
-        if status.get("enabled") == 1:
-            entities.append(AlteregoClimate(coordinator, zone))
-
-    async_add_entities(entities)
+    coordinator = entry.runtime_data
+    async_add_entities(
+        AlteregoClimate(coordinator, zone) for zone in coordinator.enabled_zones()
+    )
 
 
-class AlteregoClimate(CoordinatorEntity, ClimateEntity):
-    
+class AlteregoClimate(AlteregoZoneEntity, ClimateEntity):
+    """A zone: target temperature, forcing presets and heat/cool/off."""
 
+    _attr_name = None
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
+        | ClimateEntityFeature.TURN_ON
+        | ClimateEntityFeature.TURN_OFF
     )
     _attr_preset_modes = [FORCING_AUTO, FORCING_COMFORT, FORCING_ECONOMY, FORCING_OFF]
 
     def __init__(
-        self,
-        coordinator: AlteregoDataUpdateCoordinator,
-        zone_data: dict[str, Any],
+        self, coordinator: AlteregoDataUpdateCoordinator, zone: dict[str, Any]
     ) -> None:
-        
-        super().__init__(coordinator)
-        self._zone_id = zone_data.get("id")
-        self._zone_data = zone_data
-        self._station_id = coordinator.station_id
-        status = zone_data.get("status", {})
-        self._zone_name = status.get("description", f"Zone {self._zone_id}")
-        self._attr_name = self._zone_name
-        self._attr_unique_id = f"{self._station_id}_{self._zone_id}_climate"
+        super().__init__(coordinator, zone, "climate")
 
     @property
-    def device_info(self) -> dict[str, Any]:
-        
-        return {
-            "identifiers": {(DOMAIN, f"{self._station_id}_{self._zone_id}")},
-            "name": self._zone_name,
-            "manufacturer": "Alterego",
-            "model": DEVICE_TYPE_ZONE,
-            "via_device": (DOMAIN, self._station_id),
-        }
+    def _is_summer(self) -> bool:
+        return self.coordinator.season == SEASON_SUMMER
 
     @property
     def current_temperature(self) -> float | None:
-        
-        zone = self._get_zone_data()
-        status = zone.get("status", {})
-        temp = status.get("temperature")
-        if temp in [None, "N/A", "N/C"]:
-            return None
-        try:
-            return float(temp)
-        except (ValueError, TypeError):
-            return None
+        return to_float(self.status.get("temperature"))
 
     @property
     def target_temperature(self) -> float | None:
-        
-        zone = self._get_zone_data()
-        status = zone.get("status", {})
-        setpoint = status.get("current_setpoint")
-        if setpoint in [None, "N/A", "0.0"]:
-            return None
-        try:
-            return float(setpoint)
-        except (ValueError, TypeError):
-            return None
+        # The API reports 0.0 when the zone has no active setpoint.
+        return to_float(self.status.get("current_setpoint")) or None
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        if self._get_season() == "SUMMER":
+        if self._is_summer:
             return [HVACMode.COOL, HVACMode.OFF]
         return [HVACMode.HEAT, HVACMode.OFF]
 
     @property
     def hvac_mode(self) -> HVACMode:
-
-        zone = self._get_zone_data()
-        forcing = zone.get("params", {}).get("forcing", FORCING_AUTO)
-
-        if forcing == FORCING_OFF:
+        if self.preset_mode == FORCING_OFF:
             return HVACMode.OFF
-        if self._get_season() == "SUMMER":
-            return HVACMode.COOL
-        return HVACMode.HEAT
-
-    def _get_season(self) -> str:
-        global_data = self.coordinator.data.get("global", {})
-        return global_data.get("status", {}).get("global_season", "WINTER")
+        return HVACMode.COOL if self._is_summer else HVACMode.HEAT
 
     @property
     def preset_mode(self) -> str:
-        
-        zone = self._get_zone_data()
-        forcing = zone.get("params", {}).get("forcing", FORCING_AUTO)
-        return forcing
+        return self.params.get("forcing", FORCING_AUTO)
+
+    def _season_limit(self, bound: str, default: float) -> float:
+        season = "summer" if self._is_summer else "winter"
+        value = to_float(
+            self.coordinator.global_params.get(f"global_zset_{bound}_{season}")
+        )
+        return default if value is None else value
 
     @property
     def min_temp(self) -> float:
-        
-        zone = self._get_zone_data()
-        params = zone.get("params", {})
-        global_data = self.coordinator.data.get("global", {})
-        global_params = global_data.get("params", {})
-
-
-        season = global_data.get("status", {}).get("global_season", "WINTER")
-        
-        if season == "SUMMER":
-            min_temp = global_params.get("global_zset_min_summer", "15.0")
-        else:
-            min_temp = global_params.get("global_zset_min_winter", "10.0")
-
-        try:
-            return float(min_temp)
-        except (ValueError, TypeError):
-            return 10.0
+        return self._season_limit("min", 15.0 if self._is_summer else 10.0)
 
     @property
     def max_temp(self) -> float:
-        
-        zone = self._get_zone_data()
-        global_data = self.coordinator.data.get("global", {})
-        global_params = global_data.get("params", {})
-
-
-        season = global_data.get("status", {}).get("global_season", "WINTER")
-        
-        if season == "SUMMER":
-            max_temp = global_params.get("global_zset_max_summer", "30.0")
-        else:
-            max_temp = global_params.get("global_zset_max_winter", "30.0")
-
-        try:
-            return float(max_temp)
-        except (ValueError, TypeError):
-            return 30.0
-
-    def _get_zone_data(self) -> dict[str, Any]:
-        
-        zones = self.coordinator.data.get("zones", [])
-        for zone in zones:
-            if zone.get("id") == self._zone_id:
-                return zone
-        return self._zone_data
+        return self._season_limit("max", 30.0)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
-
-        zone = self._get_zone_data()
-        params = zone.get("params", {})
-        global_data = self.coordinator.data.get("global", {})
-        season = global_data.get("status", {}).get("global_season", "WINTER")
-
-
-        forcing = params.get("forcing", FORCING_AUTO)
-        update_data = {}
-
-        if forcing == FORCING_COMFORT:
-            if season == "SUMMER":
-                update_data["setpoint_comfort_summer"] = temperature
-            else:
-                update_data["setpoint_comfort_winter"] = temperature
-        elif forcing == FORCING_ECONOMY:
-            if season == "SUMMER":
-                update_data["setpoint_economy_summer"] = temperature
-            else:
-                update_data["setpoint_economy_winter"] = temperature
-        else:
-
-            if season == "SUMMER":
-                update_data["setpoint_comfort_summer"] = temperature
-            else:
-                update_data["setpoint_comfort_winter"] = temperature
-
-        await self.coordinator.api.update_zone(
-            self._station_id,
-            self._zone_id,
-            update_data,
-        )
-        await self.coordinator.async_request_refresh()
+        # In AUTO/OFF the comfort setpoint is the one that matters.
+        level = "economy" if self.preset_mode == FORCING_ECONOMY else "comfort"
+        season = "summer" if self._is_summer else "winter"
+        await self._async_write({f"setpoint_{level}_{season}": temperature})
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-
         if hvac_mode == HVACMode.OFF:
             await self.async_set_preset_mode(FORCING_OFF)
-        elif hvac_mode in (HVACMode.HEAT, HVACMode.COOL):
+        elif self.preset_mode == FORCING_OFF:
+            # Only leave OFF; an active COMFORT/ECONOMY forcing is kept.
             await self.async_set_preset_mode(FORCING_AUTO)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        
-        await self.coordinator.api.update_zone(
-            self._station_id,
-            self._zone_id,
-            {"forcing": preset_mode},
-        )
-        await self.coordinator.async_request_refresh()
+        await self._async_write({"forcing": preset_mode})
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        
-        zone = self._get_zone_data()
-        status = zone.get("status", {})
-        params = zone.get("params", {})
+        params = self.params
         return {
-            "zone_id": self._zone_id,
-            "zone_type": status.get("type"),
-            "current_mode": status.get("current_mode"),
-            "zone_output": status.get("zone_output"),
+            "zone_id": self._item_id,
+            "zone_type": self.status.get("type"),
+            "current_mode": self.status.get("current_mode"),
+            "zone_output": self.status.get("zone_output"),
             "setpoint_comfort_summer": params.get("setpoint_comfort_summer"),
             "setpoint_comfort_winter": params.get("setpoint_comfort_winter"),
             "setpoint_economy_summer": params.get("setpoint_economy_summer"),
             "setpoint_economy_winter": params.get("setpoint_economy_winter"),
         }
-

@@ -18,6 +18,10 @@ build/
 *.swo
 *~
 
+.serena/
+.pytest_cache/
+.ruff_cache/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -27,9 +31,10 @@ Thumbs.db
 *.proxymanlogv2
 *.tmp
 
-# Test files
+# Test files (ad-hoc scripts; the real suite lives in tests/)
 test_*.py
 *_test.py
+!tests/test_*.py
 
 # Documentation/analysis (optional - keep if needed)
 # ANALISI_MODIFICHE_API.md

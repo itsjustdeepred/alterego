@@ -1,58 +1,54 @@
+"""Client for the Alterego cloud API."""
 
-import asyncio
-from typing import Any, Dict, List, Optional
-import aiohttp
+from __future__ import annotations
+
 import logging
+import time
+from typing import Any
+
+import aiohttp
+
+from .const import (
+    API_BASE_URL,
+    CLIENT_ID,
+    CLIENT_SECRET,
+    OAUTH_URL,
+    REQUEST_TIMEOUT,
+    USER_AGENT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+_TIMEOUT = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+# Refresh the token this many seconds before it actually expires.
+_TOKEN_EXPIRY_MARGIN = 60
+
 
 class AlteregoAPIError(Exception):
-    pass
+    """Generic error talking to the Alterego API."""
 
 
 class AlteregoAuthenticationError(AlteregoAPIError):
-    pass
+    """Credentials or access token rejected."""
 
 
 class AlteregoAPI:
-    
+    """Thin async wrapper around the Alterego REST API."""
 
     def __init__(
         self,
+        session: aiohttp.ClientSession,
         username: str,
         password: str,
-        session: Optional[aiohttp.ClientSession] = None,
-    ):
-        
+    ) -> None:
+        self._session = session
         self._username = username
         self._password = password
-        self._session = session
-        self._access_token: Optional[str] = None
-        self._token_expires_at: Optional[float] = None
+        self._access_token: str | None = None
+        self._token_expires_at: float = 0.0
 
-    async def _get_session(self) -> aiohttp.ClientSession:
-        
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    async def _ensure_authenticated(self) -> None:
-
-        current_time = asyncio.get_event_loop().time()
-        token_expired = (
-            self._token_expires_at is not None
-            and current_time >= self._token_expires_at - 60
-        )
-        if self._access_token is None or token_expired:
-            await self.authenticate()
-
-    async def authenticate(self) -> Dict[str, Any]:
-        
-        from .const import OAUTH_URL, CLIENT_ID, CLIENT_SECRET
-
-        session = await self._get_session()
-
+    async def authenticate(self) -> None:
+        """Obtain a new access token with the password grant."""
         auth_data = {
             "grant_type": "password",
             "client_id": CLIENT_ID,
@@ -60,182 +56,93 @@ class AlteregoAPI:
             "username": self._username,
             "password": self._password,
         }
-
         try:
-            async with session.post(OAUTH_URL, data=auth_data, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    _LOGGER.error("Authentication failed: %s", error_text)
-                    raise AlteregoAuthenticationError(f"Authentication failed: {response.status}")
-
+            async with self._session.post(
+                OAUTH_URL, data=auth_data, timeout=_TIMEOUT
+            ) as response:
+                if response.status in (400, 401, 403):
+                    _LOGGER.debug(
+                        "Authentication rejected (%s): %s",
+                        response.status,
+                        await response.text(),
+                    )
+                    raise AlteregoAuthenticationError(
+                        f"Authentication rejected: HTTP {response.status}"
+                    )
+                response.raise_for_status()
                 data = await response.json()
-                self._access_token = data.get("access_token")
-                expires_in = data.get("expires_in", 31536000)
-                self._token_expires_at = asyncio.get_event_loop().time() + expires_in
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise AlteregoAPIError(f"Authentication request failed: {err!r}") from err
 
-                _LOGGER.debug("Authentication successful, token expires in %s seconds", expires_in)
-                return data
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Network error during authentication: %s", err)
-            raise AlteregoAPIError(f"Network error: {err}") from err
+        token = data.get("access_token")
+        if not token:
+            raise AlteregoAuthenticationError("No access token in OAuth response")
+        expires_in = data.get("expires_in", 31536000)
+        self._access_token = token
+        self._token_expires_at = time.monotonic() + expires_in
+        _LOGGER.debug("Authenticated, token expires in %s seconds", expires_in)
+
+    async def _ensure_authenticated(self) -> None:
+        if (
+            self._access_token is None
+            or time.monotonic() >= self._token_expires_at - _TOKEN_EXPIRY_MARGIN
+        ):
+            await self.authenticate()
 
     async def _request(
-        self,
-        method: str,
-        endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        
-        from .const import API_BASE_URL
-        
+        self, method: str, endpoint: str = "", data: dict[str, Any] | None = None
+    ) -> Any:
+        """Send a request, re-authenticating once if the token is rejected."""
         await self._ensure_authenticated()
+        try:
+            return await self._send(method, endpoint, data)
+        except AlteregoAuthenticationError:
+            _LOGGER.debug("Access token rejected, re-authenticating")
+            await self.authenticate()
+            return await self._send(method, endpoint, data)
 
-        session = await self._get_session()
-        url = f"{API_BASE_URL}/{endpoint}"
-
+    async def _send(
+        self, method: str, endpoint: str, data: dict[str, Any] | None
+    ) -> Any:
+        url = f"{API_BASE_URL}/{endpoint}" if endpoint else API_BASE_URL
         headers = {
             "Authorization": f"Bearer {self._access_token}",
-            "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "Alterego/1 CFNetwork/3860.300.31 Darwin/25.2.0",
+            "User-Agent": USER_AGENT,
         }
-
         try:
-            async with session.request(
-                method,
-                url,
-                headers=headers,
-                json=data,
-                params=params,
-                timeout=aiohttp.ClientTimeout(total=10),
+            async with self._session.request(
+                method, url, headers=headers, json=data, timeout=_TIMEOUT
             ) as response:
                 if response.status == 401:
-
-                    await self.authenticate()
-                    headers["Authorization"] = f"Bearer {self._access_token}"
-                    async with session.request(
-                        method,
-                        url,
-                        headers=headers,
-                        json=data,
-                        params=params,
-                        timeout=aiohttp.ClientTimeout(total=10),
-                    ) as retry_response:
-                        retry_response.raise_for_status()
-                        return await retry_response.json()
-
+                    raise AlteregoAuthenticationError("Access token rejected")
                 response.raise_for_status()
                 return await response.json()
-        except aiohttp.ClientError as err:
-            _LOGGER.error("API request failed: %s", err)
-            raise AlteregoAPIError(f"Request failed: {err}") from err
-
-    async def get_zones(self, station_id: str) -> List[Dict[str, Any]]:
-        
-        endpoint = f"{station_id}/zones"
-        return await self._request("GET", endpoint)
-
-    async def get_global_status(self, station_id: str) -> Dict[str, Any]:
-        
-        endpoint = f"{station_id}/global"
-        return await self._request("GET", endpoint)
-
-    async def get_deums(self, station_id: str) -> List[Dict[str, Any]]:
-        
-        endpoint = f"{station_id}/deums"
-        return await self._request("GET", endpoint)
-
-    async def get_timers(self, station_id: str) -> List[Dict[str, Any]]:
-        
-        endpoint = f"{station_id}/timers"
-        return await self._request("GET", endpoint)
-
-    async def get_stations(self) -> List[Dict[str, Any]]:
-        
-        from .const import API_BASE_URL
-        
-        await self._ensure_authenticated()
-
-        session = await self._get_session()
-
-        url = API_BASE_URL
-
-        headers = {
-            "Authorization": f"Bearer {self._access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "Alterego/1 CFNetwork/3860.300.31 Darwin/25.2.0",
-        }
-
-        try:
-            async with session.request(
-                "GET",
-                url,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                if response.status == 401:
-
-                    await self.authenticate()
-                    headers["Authorization"] = f"Bearer {self._access_token}"
-                    async with session.request(
-                        "GET",
-                        url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=10),
-                    ) as retry_response:
-                        retry_response.raise_for_status()
-                        return await retry_response.json()
-
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            _LOGGER.error("API request failed: %s", err)
-            raise AlteregoAPIError(f"Request failed: {err}") from err
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise AlteregoAPIError(f"{method} {url} failed: {err!r}") from err
 
     @staticmethod
     def _numeric_id(resource_id: str) -> str:
-        return resource_id.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+        """Write endpoints want "1" where read endpoints return "Z1"/"T1"/"D1"."""
+        return resource_id.lstrip(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        )
 
-    async def update_zone(
-        self,
-        station_id: str,
-        zone_id: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        endpoint = f"{station_id}/zones/{self._numeric_id(zone_id)}"
-        return await self._request("POST", endpoint, data=data)
+    async def get_stations(self) -> list[dict[str, Any]]:
+        """Return the stations visible to the account."""
+        return await self._request("GET")
 
-    async def update_timer(
-        self,
-        station_id: str,
-        timer_id: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        endpoint = f"{station_id}/timers/{self._numeric_id(timer_id)}"
-        return await self._request("POST", endpoint, data=data)
+    async def get_resource(self, station_id: str, resource: str) -> Any:
+        """Read zones, global, deums or timers of a station."""
+        return await self._request("GET", f"{station_id}/{resource}")
 
-    async def update_deum(
-        self,
-        station_id: str,
-        deum_id: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        endpoint = f"{station_id}/deums/{self._numeric_id(deum_id)}"
-        return await self._request("POST", endpoint, data=data)
+    async def update_global(self, station_id: str, data: dict[str, Any]) -> Any:
+        """Write station-wide parameters."""
+        return await self._request("POST", f"{station_id}/global", data)
 
-    async def update_global(
-        self,
-        station_id: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        
-        endpoint = f"{station_id}/global"
-        return await self._request("POST", endpoint, data=data)
-
-    async def close(self) -> None:
-        
-        if self._session:
-            await self._session.close()
-
+    async def update_item(
+        self, station_id: str, resource: str, item_id: str, data: dict[str, Any]
+    ) -> Any:
+        """Write parameters of a single zone, deum or timer."""
+        endpoint = f"{station_id}/{resource}/{self._numeric_id(item_id)}"
+        return await self._request("POST", endpoint, data)

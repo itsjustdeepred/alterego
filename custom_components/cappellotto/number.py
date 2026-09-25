@@ -1,110 +1,79 @@
+"""Number entities for the Alterego integration."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    DEVICE_TYPE_ZONE,
-    DOMAIN,
-    SEASON_SUMMER,
-    SEASON_WINTER,
+from .const import DOMAIN, SEASON_SUMMER
+from .coordinator import AlteregoConfigEntry, AlteregoDataUpdateCoordinator
+from .entity import AlteregoDeumEntity, AlteregoZoneEntity, to_float
+
+PARALLEL_UPDATES = 1
+
+SETPOINT_KEYS = (
+    "setpoint_comfort_summer",
+    "setpoint_economy_summer",
+    "setpoint_comfort_winter",
+    "setpoint_economy_winter",
 )
-from .coordinator import AlteregoDataUpdateCoordinator
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: AlteregoConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    
-    coordinator: AlteregoDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
+    entities: list[NumberEntity] = []
 
-    entities = []
-
-
-    for zone in coordinator.data.get("zones", []):
-        status = zone.get("status", {})
-        if status.get("enabled") != 1:
-            continue
-
-        zone_id = zone.get("id")
+    for zone in coordinator.enabled_zones():
         params = zone.get("params", {})
-        zone_type = status.get("type", "")
-
-
-        if params.get("setpoint_comfort_summer"):
-            entities.append(
-                AlteregoSetpointNumber(
-                    coordinator, zone_id, zone, "setpoint_comfort_summer", "Summer Comfort"
-                )
-            )
-
-
-        if params.get("setpoint_economy_summer"):
-            entities.append(
-                AlteregoSetpointNumber(
-                    coordinator, zone_id, zone, "setpoint_economy_summer", "Summer Economy"
-                )
-            )
-
-
-        if params.get("setpoint_comfort_winter"):
-            entities.append(
-                AlteregoSetpointNumber(
-                    coordinator, zone_id, zone, "setpoint_comfort_winter", "Winter Comfort"
-                )
-            )
-
-
-        if params.get("setpoint_economy_winter"):
-            entities.append(
-                AlteregoSetpointNumber(
-                    coordinator, zone_id, zone, "setpoint_economy_winter", "Winter Economy"
-                )
-            )
-
-
-        if "RH" in zone_type and params.get("setpoint_humidity") is not None:
-            entities.append(
-                AlteregoHumiditySetpointNumber(coordinator, zone_id, zone)
-            )
-
-
-
-    enabled_deums = []
-    seen_ids = set()
-    for deum in coordinator.data.get("deums", []):
-        deum_id = deum.get("id")
-        status = deum.get("status", {})
-        
-
-        if (deum_id and 
-            status.get("enabled") == 1 and 
-            status.get("user_visible") is True and
-            deum_id not in seen_ids):
-            seen_ids.add(deum_id)
-            enabled_deums.append(deum)
-    
-
-    for deum in enabled_deums:
-        deum_id = deum.get("id")
-        entities.append(
-            AlteregoDeumBoostTimerNumber(coordinator, deum_id, deum)
+        entities.extend(
+            AlteregoSetpointNumber(coordinator, zone, key)
+            for key in SETPOINT_KEYS
+            if params.get(key)
         )
+        if (
+            "RH" in zone.get("status", {}).get("type", "")
+            and params.get("setpoint_humidity") is not None
+        ):
+            entities.append(AlteregoHumiditySetpointNumber(coordinator, zone))
+
+    entities.extend(
+        AlteregoDeumBoostTimerNumber(coordinator, deum)
+        for deum in coordinator.visible_deums()
+    )
 
     async_add_entities(entities)
 
 
-class AlteregoSetpointNumber(CoordinatorEntity, NumberEntity):
-    
+class SummerOnlyMixin:
+    """Only usable while the station runs in summer mode."""
+
+    coordinator: AlteregoDataUpdateCoordinator
+
+    @property
+    def available(self) -> bool:
+        return (
+            super().available  # type: ignore[misc]
+            and self.coordinator.season == SEASON_SUMMER
+        )
+
+    def _raise_if_not_summer(self) -> None:
+        if self.coordinator.season != SEASON_SUMMER:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="summer_only"
+            )
+
+
+class AlteregoSetpointNumber(AlteregoZoneEntity, NumberEntity):
+    """One of the four seasonal comfort/economy setpoints of a zone."""
 
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_mode = NumberMode.BOX
@@ -115,67 +84,25 @@ class AlteregoSetpointNumber(CoordinatorEntity, NumberEntity):
     def __init__(
         self,
         coordinator: AlteregoDataUpdateCoordinator,
-        zone_id: str,
-        zone_data: dict[str, Any],
+        zone: dict[str, Any],
         setpoint_key: str,
-        setpoint_name: str,
     ) -> None:
-        
-        super().__init__(coordinator)
-        self._zone_id = zone_id
-        self._zone_data = zone_data
-        self._station_id = coordinator.station_id
+        super().__init__(coordinator, zone, setpoint_key)
         self._setpoint_key = setpoint_key
-        status = zone_data.get("status", {})
-        self._zone_name = status.get("description", f"Zone {zone_id}")
-        self._attr_name = f"{self._zone_name} {setpoint_name} Setpoint"
-        self._attr_unique_id = f"{self._station_id}_{zone_id}_{setpoint_key}"
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        
-        return {
-            "identifiers": {(DOMAIN, f"{self._station_id}_{self._zone_id}")},
-            "name": self._zone_name,
-            "manufacturer": "Alterego",
-            "model": DEVICE_TYPE_ZONE,
-            "via_device": (DOMAIN, self._station_id),
-        }
+        self._attr_translation_key = setpoint_key
 
     @property
     def native_value(self) -> float | None:
-        
-        zone = self._get_zone_data()
-        params = zone.get("params", {})
-        value = params.get(self._setpoint_key)
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return None
-
-    def _get_zone_data(self) -> dict[str, Any]:
-        
-        zones = self.coordinator.data.get("zones", [])
-        for zone in zones:
-            if zone.get("id") == self._zone_id:
-                return zone
-        return self._zone_data
+        return to_float(self.params.get(self._setpoint_key))
 
     async def async_set_native_value(self, value: float) -> None:
-        
-        await self.coordinator.api.update_zone(
-            self._station_id,
-            self._zone_id,
-            {self._setpoint_key: value},
-        )
-        await self.coordinator.async_request_refresh()
+        await self._async_write({self._setpoint_key: value})
 
 
-class AlteregoHumiditySetpointNumber(CoordinatorEntity, NumberEntity):
-    
+class AlteregoHumiditySetpointNumber(SummerOnlyMixin, AlteregoZoneEntity, NumberEntity):
+    """Humidity setpoint of a T+RH zone."""
 
+    _attr_translation_key = "setpoint_humidity"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 30.0
@@ -183,80 +110,24 @@ class AlteregoHumiditySetpointNumber(CoordinatorEntity, NumberEntity):
     _attr_native_step = 0.5
 
     def __init__(
-        self,
-        coordinator: AlteregoDataUpdateCoordinator,
-        zone_id: str,
-        zone_data: dict[str, Any],
+        self, coordinator: AlteregoDataUpdateCoordinator, zone: dict[str, Any]
     ) -> None:
-        
-        super().__init__(coordinator)
-        self._zone_id = zone_id
-        self._zone_data = zone_data
-        self._station_id = coordinator.station_id
-        status = zone_data.get("status", {})
-        self._zone_name = status.get("description", f"Zone {zone_id}")
-        self._attr_name = f"{self._zone_name} Humidity Setpoint"
-        self._attr_unique_id = f"{self._station_id}_{zone_id}_setpoint_humidity"
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        
-        return {
-            "identifiers": {(DOMAIN, f"{self._station_id}_{self._zone_id}")},
-            "name": self._zone_name,
-            "manufacturer": "Alterego",
-            "model": DEVICE_TYPE_ZONE,
-            "via_device": (DOMAIN, self._station_id),
-        }
+        super().__init__(coordinator, zone, "setpoint_humidity")
 
     @property
     def native_value(self) -> float | None:
-        
-        zone = self._get_zone_data()
-        params = zone.get("params", {})
-        value = params.get("setpoint_humidity")
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return None
-
-    @property
-    def available(self) -> bool:
-        
-        global_data = self.coordinator.data.get("global", {})
-        season = global_data.get("status", {}).get("global_season", SEASON_WINTER)
-        return season == SEASON_SUMMER
-
-    def _get_zone_data(self) -> dict[str, Any]:
-        
-        zones = self.coordinator.data.get("zones", [])
-        for zone in zones:
-            if zone.get("id") == self._zone_id:
-                return zone
-        return self._zone_data
+        return to_float(self.params.get("setpoint_humidity"))
 
     async def async_set_native_value(self, value: float) -> None:
-        
-
-        global_data = self.coordinator.data.get("global", {})
-        season = global_data.get("status", {}).get("global_season", SEASON_WINTER)
-        if season != SEASON_SUMMER:
-            from homeassistant.exceptions import HomeAssistantError
-            raise HomeAssistantError("Humidity setpoint can only be modified in summer mode")
-
-        await self.coordinator.api.update_zone(
-            self._station_id,
-            self._zone_id,
-            {"setpoint_humidity": value},
-        )
-        await self.coordinator.async_request_refresh()
+        self._raise_if_not_summer()
+        await self._async_write({"setpoint_humidity": value})
 
 
-class AlteregoDeumBoostTimerNumber(CoordinatorEntity, NumberEntity):
-    
+class AlteregoDeumBoostTimerNumber(SummerOnlyMixin, AlteregoDeumEntity, NumberEntity):
+    """Duration of the dehumidifier boost."""
 
+    _attr_translation_key = "boost_timer"
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 0
     _attr_native_max_value = 60
@@ -264,86 +135,23 @@ class AlteregoDeumBoostTimerNumber(CoordinatorEntity, NumberEntity):
     _attr_icon = "mdi:timer"
 
     def __init__(
-        self,
-        coordinator: AlteregoDataUpdateCoordinator,
-        deum_id: str,
-        deum_data: dict[str, Any],
+        self, coordinator: AlteregoDataUpdateCoordinator, deum: dict[str, Any]
     ) -> None:
-        
-        super().__init__(coordinator)
-        self._deum_id = deum_id
-        self._deum_data = deum_data
-        self._station_id = coordinator.station_id
-        status = deum_data.get("status", {})
-
-        description = status.get("description", "").strip()
-        if description:
-            self._deum_name = description
-        else:
-            self._deum_name = f"Deumidificatore {deum_id}"
-        self._attr_name = f"{self._deum_name} Boost Timer"
-        self._attr_unique_id = f"{self._station_id}_{deum_id}_boost_timer"
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        
-        return {
-            "identifiers": {(DOMAIN, f"{self._station_id}_{self._deum_id}")},
-            "name": f"{self._deum_name} {self._deum_id}",
-            "manufacturer": "Alterego",
-            "model": "Deumidificatore",
-            "via_device": (DOMAIN, self._station_id),
-        }
+        super().__init__(coordinator, deum, "boost_timer")
 
     @property
     def native_value(self) -> float | None:
-        
-        deum = self._get_deum_data()
-        params = deum.get("params", {})
-        value = params.get("boost_timer")
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return None
-
-    @property
-    def available(self) -> bool:
-        
-        global_data = self.coordinator.data.get("global", {})
-        season = global_data.get("status", {}).get("global_season", SEASON_WINTER)
-        return season == SEASON_SUMMER
-
-    def _get_deum_data(self) -> dict[str, Any]:
-        
-        deums = self.coordinator.data.get("deums", [])
-        for deum in deums:
-            if deum.get("id") == self._deum_id:
-                return deum
-        return self._deum_data
+        return to_float(self.params.get("boost_timer"))
 
     async def async_set_native_value(self, value: float) -> None:
-        
-
-        global_data = self.coordinator.data.get("global", {})
-        season = global_data.get("status", {}).get("global_season", SEASON_WINTER)
-        if season != SEASON_SUMMER:
-            from homeassistant.exceptions import HomeAssistantError
-            raise HomeAssistantError("Boost timer can only be modified in summer mode")
-
-        deum = self._get_deum_data()
-        params = deum.get("params", {})
-        
-        await self.coordinator.api.update_deum(
-            self._station_id,
-            self._deum_id,
+        self._raise_if_not_summer()
+        params = self.params
+        # The API expects the fan speeds to be sent together with the timer.
+        await self._async_write(
             {
                 "boost_timer": int(value),
                 "vent_speed_boost": params.get("vent_speed_boost", 80),
                 "vent_speed_comfort": params.get("vent_speed_comfort", 40),
                 "vent_speed_economy": params.get("vent_speed_economy", 0),
-            },
+            }
         )
-        await self.coordinator.async_request_refresh()
-

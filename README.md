@@ -29,7 +29,9 @@ Home Assistant integration for Alterego climate control systems (radiant floor, 
 - **Dehumidifier / VMC Control**: Override speed (AUTO, LOW, MEDIUM, HIGH, OFF) for each visible dehumidifier or VMC unit
 - **Timer Programming**: Weekly schedule control — mode and time for each active daily slot
 - **Season Select**: Switch the whole system between SUMMER and WINTER from Home Assistant
-- **Efficient Polling**: Zones every 30 s, global status every 5 min, timers and dehumidifiers every 5 min
+- **Efficient Polling**: Zones every 30 s, dehumidifiers every 60 s, global status and timers every 5 min — changes made from Home Assistant are re-read immediately
+- **Re-authentication**: If your password changes, Home Assistant asks for the new credentials instead of failing silently
+- **Localized**: Entity names and messages in English and Italian
 
 ## Installation
 
@@ -58,7 +60,7 @@ Home Assistant integration for Alterego climate control systems (radiant floor, 
 | Station | Yes | Select from the list of available stations |
 | Station Name | No | Optional custom display name (defaults to station ID) |
 
-To update credentials or station name after setup: go to the integration page and click **Configure**.
+To rename the station, click **Configure** on the integration page. To change credentials, use **Reconfigure** from the integration's menu (⋮).
 
 ## Entities
 
@@ -99,12 +101,16 @@ One entity per enabled zone.
 | Zone Humidity Setpoint | % — available in summer only |
 | Dehumidifier Boost Timer | min — available in summer only |
 
+Entity names are translated (English / Italian) and prefixed with the device name, e.g. *Living Summer comfort setpoint*.
+
 ### Time
-Timer slot start time for each active slot (Fascia 1, Fascia 2…) per day of the week. Inactive slots (N/U) are hidden.
+Timer slot start time for each active slot (e.g. *Monday slot 1 time*) per day of the week. Slots that are unused (N/U) at setup are not created; a slot set to N/U later becomes unavailable.
 
 ## Troubleshooting
 
-**Entities not appearing** — wait a few minutes after first setup; check HA logs for API errors.
+**Entities not appearing** — if the API is unreachable at startup the integration retries automatically; check HA logs for API errors.
+
+**Entities unavailable** — the Alterego cloud API did not answer; they recover on the next successful poll.
 
 **Authentication errors** — verify email and password; ensure your Alterego account has an active station.
 
@@ -112,9 +118,12 @@ Timer slot start time for each active slot (Fascia 1, Fascia 2…) per day of th
 
 ## Requirements
 
-- Home Assistant 2024.1.0 or later
+- Home Assistant 2024.12.0 or later
 - Alterego account with at least one active station
-- Python package `aiohttp >= 3.8.0` (installed automatically)
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Disclaimer
 

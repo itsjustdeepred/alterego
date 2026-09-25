@@ -9,73 +9,92 @@
           "password": "Password"
         },
         "data_description": {
-          "username": "Il tuo indirizzo email dell'account Alterego",
-          "password": "La tua password dell'account Alterego"
+          "username": "L'indirizzo email del tuo account Alterego",
+          "password": "La password del tuo account Alterego"
         }
       },
       "station": {
-        "title": "Selezione Stazione",
-        "description": "Inserisci l'ID della stazione (numero seriale).\n\nEsempio: DOT_XXXXXXXX\n\nPuoi inserire più ID separati da virgola per testare quali sono accessibili.\n\nPuoi trovare l'ID della stazione nell'app Alterego o nel pannello di controllo.",
+        "title": "Selezione stazione",
+        "description": "Non è stato possibile recuperare automaticamente l'elenco delle stazioni. Inserisci l'ID della stazione (numero seriale), es. DOT_XXXXXXXX.\n\nLo trovi nell'app Alterego o sul pannello di controllo.",
         "data": {
-          "station_id": "ID Stazione(e)"
+          "station_id": "ID stazione"
         },
         "data_description": {
-          "station_id": "Il numero seriale della tua stazione Alterego, separati da virgola se multiple (es. DOT_XXXXXXXX o DOT_XXXXXXXX, DOT_YYYYYYYY)"
+          "station_id": "Il numero seriale della tua stazione Alterego (es. DOT_XXXXXXXX)"
         }
       },
       "station_select": {
-        "title": "Selezione Stazione",
-        "description": "Sono state trovate {count} stazione/i disponibile/i. Seleziona quella che vuoi configurare.",
+        "title": "Selezione stazione",
+        "description": "Sono state trovate {count} stazioni disponibili. Seleziona quella da configurare.",
         "data": {
           "station_id": "Stazione"
         }
       },
       "station_name": {
-        "title": "Nome Stazione (Opzionale)",
-        "description": "Puoi assegnare un nome personalizzato a questa stazione per identificarla più facilmente in Home Assistant.\n\nStation ID: {station_id}\n\nLascia vuoto per usare lo Station ID come nome.",
+        "title": "Nome stazione (opzionale)",
+        "description": "ID stazione: {station_id}",
         "data": {
           "station_name": "Nome personalizzato"
+        },
+        "data_description": {
+          "station_name": "Lascia vuoto per usare l'ID stazione come nome."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nuova autenticazione Alterego",
+        "description": "Le credenziali Alterego per la stazione {station_id} non sono più valide. Inseriscile di nuovo.",
+        "data": {
+          "username": "Indirizzo email",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigurazione Alterego",
+        "description": "Modifica le credenziali e il nome della stazione.\n\nID stazione: {station_id}",
+        "data": {
+          "username": "Indirizzo email",
+          "password": "Password",
+          "station_name": "Nome stazione"
+        },
+        "data_description": {
+          "station_name": "Lascia vuoto per usare l'ID stazione come nome."
         }
       }
     },
     "error": {
       "cannot_connect": "Impossibile connettersi all'API Alterego. Verifica la connessione internet.",
       "invalid_auth": "Credenziali non valide. Controlla email e password.",
-      "invalid_station": "ID stazione non valido o non accessibile. Verifica che l'ID sia corretto e che tu abbia accesso a questa stazione.",
-      "unknown": "Si è verificato un errore imprevisto"
+      "invalid_station": "ID stazione non valido o non accessibile con questo account.",
+      "unknown": "Si è verificato un errore imprevisto."
     },
     "abort": {
-      "already_configured": "Questa stazione è già configurata",
-      "reauth_successful": "Riautenticazione completata con successo",
-      "no_station_id": "Station ID mancante"
-    },
-    "options": {
-      "step": {
-        "init": {
-          "title": "Opzioni Alterego",
-          "description": "Modifica il nome della stazione (solo locale).\n\nStation ID: {station_id}",
-          "data": {
-            "station_name": "Nome stazione"
-          }
-        }
-      }
-    },
-    "reconfigure": {
-      "step": {
-        "reconfigure": {
-          "title": "Riconfigurazione Alterego",
-          "description": "Modifica le credenziali e il nome della stazione.\n\nStation ID: {station_id}",
-          "data": {
-            "username": "Indirizzo email",
-            "password": "Password",
-            "station_name": "Nome stazione"
-          }
+      "already_configured": "Questa stazione è già configurata.",
+      "reauth_successful": "Nuova autenticazione completata con successo.",
+      "reconfigure_successful": "Riconfigurazione completata con successo."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Alterego",
+        "description": "Modifica il nome della stazione mostrato in Home Assistant.\n\nID stazione: {station_id}",
+        "data": {
+          "station_name": "Nome stazione"
+        },
+        "data_description": {
+          "station_name": "Lascia vuoto per usare l'ID stazione come nome."
         }
       }
     }
   },
   "entity": {
     "sensor": {
+      "status": {
+        "name": "Stato"
+      },
+      "outside_temperature": {
+        "name": "Temperatura esterna"
+      },
       "temperature": {
         "name": "Temperatura"
       },
@@ -96,30 +115,78 @@
       "season": {
         "name": "Stagione"
       },
-      "setpoint_comfort_summer": {
-        "name": "Setpoint Estate Comfort"
+      "slot_mo": {
+        "name": "Lunedì fascia {slot}"
       },
-      "setpoint_economy_summer": {
-        "name": "Setpoint Estate Economy"
+      "slot_tu": {
+        "name": "Martedì fascia {slot}"
       },
-      "setpoint_comfort_winter": {
-        "name": "Setpoint Inverno Comfort"
+      "slot_we": {
+        "name": "Mercoledì fascia {slot}"
       },
-      "setpoint_economy_winter": {
-        "name": "Setpoint Inverno Economy"
+      "slot_th": {
+        "name": "Giovedì fascia {slot}"
       },
-      "setpoint_humidity": {
-        "name": "Setpoint Umidità"
+      "slot_fr": {
+        "name": "Venerdì fascia {slot}"
+      },
+      "slot_sa": {
+        "name": "Sabato fascia {slot}"
+      },
+      "slot_su": {
+        "name": "Domenica fascia {slot}"
       }
     },
-    "switch": {
-      "zone_power": {
-        "name": "Alimentazione"
+    "number": {
+      "setpoint_comfort_summer": {
+        "name": "Setpoint comfort estate"
       },
-      "deum_power": {
-        "name": "Alimentazione"
+      "setpoint_economy_summer": {
+        "name": "Setpoint economy estate"
+      },
+      "setpoint_comfort_winter": {
+        "name": "Setpoint comfort inverno"
+      },
+      "setpoint_economy_winter": {
+        "name": "Setpoint economy inverno"
+      },
+      "setpoint_humidity": {
+        "name": "Setpoint umidità"
+      },
+      "boost_timer": {
+        "name": "Timer boost"
       }
+    },
+    "time": {
+      "slot_time_mo": {
+        "name": "Lunedì fascia {slot} orario"
+      },
+      "slot_time_tu": {
+        "name": "Martedì fascia {slot} orario"
+      },
+      "slot_time_we": {
+        "name": "Mercoledì fascia {slot} orario"
+      },
+      "slot_time_th": {
+        "name": "Giovedì fascia {slot} orario"
+      },
+      "slot_time_fr": {
+        "name": "Venerdì fascia {slot} orario"
+      },
+      "slot_time_sa": {
+        "name": "Sabato fascia {slot} orario"
+      },
+      "slot_time_su": {
+        "name": "Domenica fascia {slot} orario"
+      }
+    }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "Impossibile inviare la modifica all'API Alterego: {error}"
+    },
+    "summer_only": {
+      "message": "Questa impostazione si può modificare solo con la stazione in modalità estate."
     }
   }
 }
-

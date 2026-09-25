@@ -34,15 +34,19 @@ Go to **Settings → Devices & Services → Add Integration**, search for **Alte
 
 **Number** — comfort and economy setpoints for summer and winter; humidity setpoint and dehumidifier boost timer (summer only).
 
-**Time** — start time for each active timer slot (Fascia 1, Fascia 2…) per day of the week.
+**Time** — start time for each active timer slot per day of the week.
+
+Entity names are available in English and Italian. If your password changes, Home Assistant asks you to re-authenticate.
 
 ## Update intervals
 
 - Zones: every 30 s
+- Dehumidifiers: every 60 s
 - Global status / Timers: every 5 min
-- Dehumidifiers: every 5 min
 
-Minimum required Home Assistant version: **2024.1.0**
+Changes made from Home Assistant are re-read immediately.
+
+Minimum required Home Assistant version: **2024.12.0**
 
 ---
 
